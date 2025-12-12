@@ -1,0 +1,34 @@
+{
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/design-documents"
+  ],
+  "compilerOptions": {
+    "moduleResolution": "node",
+    "target": "es2018",
+    "module": "commonjs",
+    "outDir": "dist",
+    "lib": [
+      "esnext",
+      "DOM"
+    ],
+    "strict": true,
+    "esModuleInterop": true,
+    "declaration": true,
+    "skipLibCheck": true,
+    "sourceMap": false,
+    "removeComments": true,
+    "newLine": "lf",
+    "noEmitOnError": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true
+  }
+}
