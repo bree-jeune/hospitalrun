@@ -1,15 +1,15 @@
 [submodule "packages/server"]
 	path = packages/server
-	url = git@github.com:HospitalRun/hospitalrun-server.git
+	url = https://github.com/HospitalRun/hospitalrun-server.git
 [submodule "packages/components"]
 	path = packages/components
-	url = git@github.com:HospitalRun/components.git
+	url = https://github.com/HospitalRun/components.git
 [submodule "packages/frontend"]
 	path = packages/frontend
-	url = git@github.com:HospitalRun/hospitalrun-frontend.git
+	url = https://github.com/HospitalRun/hospitalrun-frontend.git
 [submodule "packages/core"]
 	path = packages/core
-	url = git@github.com:HospitalRun/hospitalrun-core.git
+	url = https://github.com/HospitalRun/hospitalrun-core.git
 [submodule "packages/cli"]
 	path = packages/cli
-	url = git@github.com:HospitalRun/cli.git
+	url = https://github.com/HospitalRun/cli.git
