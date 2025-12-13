@@ -1,5 +1,5 @@
 import isEmpty from 'lodash/isEmpty'
-import { queryCache, useMutation } from 'react-query'
+import { queryCache, useMutation } from '@tanstack/react-query'
 
 import ImagingRepository from '../../shared/db/ImagingRepository'
 import Imaging from '../../shared/model/Imaging'

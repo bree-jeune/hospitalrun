@@ -3,14 +3,14 @@
   "version": "3.4.0",
   "license": "MIT",
   "type": "module",
-  "main": "./dist/components.cjs.js",
-  "module": "./dist/components.es.js",
-  "types": "./dist/index.d.ts",
+  "main": "./src/index.tsx",
+  "module": "./src/index.tsx",
+  "types": "./src/index.tsx",
   "exports": {
     ".": {
-      "import": "./dist/components.es.js",
-      "require": "./dist/components.cjs.js",
-      "types": "./dist/index.d.ts"
+      "import": "./src/index.tsx",
+      "require": "./src/index.tsx",
+      "types": "./src/index.tsx"
     },
     "./scss/*": "./scss/*"
   },
@@ -97,6 +97,9 @@
     "react-bootstrap-typeahead": "^6.0.0",
     "react-datepicker": "^4.24.0",
     "react-spinners": "^0.13.0",
-    "react-toastify": "^9.1.0"
+    "react-toastify": "^9.1.0",
+    "@tinymce/tinymce-react": "^4.3.0",
+    "tinymce": "^6.8.0",
+    "video-react": "^0.16.0"
   }
 }

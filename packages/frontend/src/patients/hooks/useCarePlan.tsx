@@ -1,4 +1,4 @@
-import { useQuery } from 'react-query'
+import { useQuery } from '@tanstack/react-query'
 
 import PatientRepository from '../../shared/db/PatientRepository'
 import CarePlan from '../../shared/model/CarePlan'

@@ -1,4 +1,4 @@
-import { queryCache, useMutation } from 'react-query'
+import { queryCache, useMutation } from '@tanstack/react-query'
 
 import IncidentRepository from '../../shared/db/IncidentRepository'
 import Incident from '../../shared/model/Incident'

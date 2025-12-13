@@ -1,4 +1,4 @@
-import { Parser } from 'json2csv'
+import { Parser } from '@json2csv/plainjs'
 
 export function getCSV<T>(data: T[]): string {
   const fields = Object.keys(data[0])

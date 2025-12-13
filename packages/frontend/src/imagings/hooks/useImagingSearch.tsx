@@ -1,4 +1,4 @@
-import { useQuery } from 'react-query'
+import { useQuery } from '@tanstack/react-query'
 
 import ImagingRepository from '../../shared/db/ImagingRepository'
 import SortRequest from '../../shared/db/SortRequest'

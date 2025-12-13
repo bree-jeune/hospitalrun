@@ -2,7 +2,7 @@
 
 import { Spinner } from '@hospitalrun/components'
 import React, { Suspense, useEffect, useState } from 'react'
-import { ReactQueryDevtools } from 'react-query-devtools'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { useDispatch } from 'react-redux'
 import { BrowserRouter, Route, Switch } from 'react-router-dom'
 

@@ -1,5 +1,5 @@
 import isEmpty from 'lodash/isEmpty'
-import { useMutation, queryCache } from 'react-query'
+import { useMutation, queryCache } from '@tanstack/react-query'
 
 import LabRepository from '../../shared/db/LabRepository'
 import Lab from '../../shared/model/Lab'

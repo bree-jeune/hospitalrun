@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react-hooks'
-import { MutateFunction } from 'react-query'
+import { MutateFunction } from '@tanstack/react-query'
 
 export default async function executeMutation<TResult>(
   callback: () => [MutateFunction<unknown, unknown, TResult>, ...any[]],

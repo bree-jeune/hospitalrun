@@ -4,17 +4,16 @@ import React from 'react'
 import 'tinymce/tinymce'
 
 // Basic tinyMCE theme & skins required for editor to display
-import 'tinymce/themes/silver/theme.min'
+import 'tinymce/themes/silver'
 import 'tinymce/skins/ui/oxide/skin.min.css'
 import 'tinymce/skins/ui/oxide/content.min.css'
 
-// Import required plugins
-import 'tinymce/plugins/autolink/plugin.min'
-import 'tinymce/plugins/lists/plugin.min'
-import 'tinymce/plugins/link/plugin.min'
-import 'tinymce/plugins/table/plugin.min'
-import 'tinymce/plugins/paste/plugin.min'
-import 'tinymce/plugins/charmap/plugin.min'
+// Import required plugins (paste is built-in in TinyMCE 6)
+import 'tinymce/plugins/autolink'
+import 'tinymce/plugins/lists'
+import 'tinymce/plugins/link'
+import 'tinymce/plugins/table'
+import 'tinymce/plugins/charmap'
 
 interface Props {
   /**
@@ -59,7 +58,7 @@ const RichText = (props: Props) => {
         skin: false,
         // eslint disabled on next line due to TinyMCE option attribute naming.
         content_css: false,
-        plugins: [`autolink lists link table paste charmap`],
+        plugins: [`autolink lists link table charmap`],
         toolbar: [
           `undo redo | formatselect fontselect fontsizeselect | bold italic underline sub sup backcolor |
         alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | table link removeformat`,

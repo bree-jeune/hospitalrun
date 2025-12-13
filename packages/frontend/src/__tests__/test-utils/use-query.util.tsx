@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react-hooks'
 import React from 'react'
-import { ReactQueryConfigProvider, QueryResult } from 'react-query'
+import { ReactQueryConfigProvider, QueryResult } from '@tanstack/react-query'
 
 const reactQueryOverrides = { queries: { retry: false } }
 

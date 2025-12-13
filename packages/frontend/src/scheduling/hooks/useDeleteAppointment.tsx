@@ -1,4 +1,4 @@
-import { queryCache, useMutation } from 'react-query'
+import { queryCache, useMutation } from '@tanstack/react-query'
 
 import AppointmentRepository from '../../shared/db/AppointmentRepository'
 import Appointment from '../../shared/model/Appointment'

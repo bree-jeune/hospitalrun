@@ -2,7 +2,7 @@
 import '@testing-library/jest-dom'
 import { configure, act } from '@testing-library/react'
 import 'jest-canvas-mock'
-import { queryCache } from 'react-query'
+import { queryCache } from '@tanstack/react-query'
 
 import './__mocks__/i18next'
 import './__mocks__/matchMediaMock'
