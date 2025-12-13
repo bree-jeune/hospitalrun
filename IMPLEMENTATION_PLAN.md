@@ -1,256 +1,364 @@
-# HospitalRun + EMS ePCR Convergence - Implementation Plan
+# OfflineFirst ePCR - Implementation Plan
 
-## Executive Summary
+## Vision Statement
 
-Transform HospitalRun from a hospital-only HIS into a converged Hospital + EMS system with seamless patient handoff capabilities. The offline-first architecture (PouchDB/CouchDB) is retained and enhanced with real-time notification layer.
+**An offline-first EMS/Hospital bridge that works when nothing else does.**
+
+Not a replacement for EPIC, ESO, or ImageTrend - a resilient sync layer that:
+- Works in rural areas with spotty connectivity
+- Operates during grid/comms failures and natural disasters
+- Provides simplified MCI triage mode when full documentation isn't feasible
+- Syncs bidirectionally with existing hospital and EMS systems via FHIR/HL7
 
 ---
 
-## Phase 1: Foundation & Multi-Tenancy (Week 1-2)
+## Target Users & Use Cases
 
-### 1.1 Data Model: Agency & User Roles
+### Primary Users
+1. **Rural EMS agencies** - Limited connectivity, need offline-capable ePCR
+2. **Rural hospitals** - May not have robust IT infrastructure
+3. **Disaster response teams** - Grid-down scenarios, MCIs
+4. **EMS-Hospital handoff** - Any agency wanting better data flow
 
-**New Models:**
+### Key Scenarios
+```
+Scenario 1: Rural Run
+├── Crew responds 30 miles from town
+├── No cell service at scene
+├── Document patient contact offline
+├── Sync when returning to coverage area
+└── Hospital receives data before crew arrives
 
-```typescript
-// packages/core/src/model/Agency.ts
-interface Agency {
-  id: string
-  name: string
-  type: 'ems' | 'hospital' | 'dispatch'
-  address: Address
-  contactInfo: ContactInfo
-  settings: AgencySettings
-  createdAt: string
-  updatedAt: string
-}
+Scenario 2: Hurricane Response
+├── Cell towers down, hospital on generator
+├── Local mesh network or satellite backhaul
+├── MCI mode: triage tags + transport tracking
+├── Full documentation synced post-event
+└── Demographics pulled from hospital system later
 
-// packages/core/src/model/UserRole.ts
-type UserRole =
-  | 'ems_crew'           // Paramedic/EMT in field
-  | 'ems_supervisor'     // EMS supervisor
-  | 'hospital_nurse'     // ED nurse
-  | 'hospital_physician' // ED physician
-  | 'hospital_admin'     // Hospital administrator
-  | 'dispatcher'         // Dispatch center
-  | 'system_admin'       // System administrator
+Scenario 3: Normal Operations
+├── Full connectivity available
+├── Real-time sync between EMS and hospital
+├── Incoming patient alerts
+├── Seamless handoff workflow
+└── Auto-export to ImageTrend/ESO via FHIR
 ```
 
-**Files to Create:**
-- `packages/core/src/model/Agency.ts`
-- `packages/core/src/model/UserRole.ts`
-- `packages/core/src/model/UserProfile.ts` (extend existing User)
+---
 
-**Files to Modify:**
-- `packages/frontend/src/shared/model/Permissions.ts` - Add EMS permissions
-- `packages/server/src/routes/` - Add agency routes
+## HIPAA Compliance Framework
 
-### 1.2 Database Schema Updates
+### Security Requirements (Strictest State Standards)
 
-**CouchDB Design Documents:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    HIPAA TECHNICAL SAFEGUARDS                │
+├─────────────────────────────────────────────────────────────┤
+│ Access Control                                               │
+│ ├── Unique user identification                              │
+│ ├── Automatic logoff (configurable timeout)                 │
+│ ├── Role-based access control (RBAC)                        │
+│ └── Emergency access procedure (break-glass)                │
+├─────────────────────────────────────────────────────────────┤
+│ Audit Controls                                               │
+│ ├── All PHI access logged                                   │
+│ ├── Tamper-evident audit trail                              │
+│ ├── Retention per state requirements (6-10 years)           │
+│ └── Export capability for compliance audits                 │
+├─────────────────────────────────────────────────────────────┤
+│ Integrity Controls                                           │
+│ ├── Data validation on input                                │
+│ ├── Checksums for sync verification                         │
+│ └── Version history for all PHI changes                     │
+├─────────────────────────────────────────────────────────────┤
+│ Transmission Security                                        │
+│ ├── TLS 1.3 for all network traffic                         │
+│ ├── End-to-end encryption for sync                          │
+│ ├── Certificate pinning for mobile apps                     │
+│ └── Offline data encrypted at rest (AES-256)                │
+└─────────────────────────────────────────────────────────────┘
+```
 
-```javascript
-// Agency database
-{
-  "_id": "_design/agency",
-  "views": {
-    "by_type": {
-      "map": "function(doc) { if(doc.type) emit(doc.type, doc); }"
-    }
-  }
+### Implementation
+
+```typescript
+// packages/core/src/security/encryption.ts
+interface EncryptionConfig {
+  algorithm: 'AES-256-GCM'
+  keyDerivation: 'PBKDF2'
+  iterations: 100000
+  saltLength: 32
 }
 
-// User-Agency relationship
-{
-  "_id": "_design/user_agency",
-  "views": {
-    "by_agency": {
-      "map": "function(doc) { if(doc.agencyId) emit(doc.agencyId, doc); }"
-    }
+// packages/core/src/security/audit.ts
+interface AuditEntry {
+  id: string
+  timestamp: string
+  userId: string
+  action: 'create' | 'read' | 'update' | 'delete' | 'export'
+  resourceType: string
+  resourceId: string
+  ipAddress?: string
+  deviceId: string
+  details: Record<string, any>
+  checksum: string  // For tamper detection
+}
+```
+
+---
+
+## Phase 1: Security & Core Infrastructure
+
+### 1.1 Authentication & Authorization
+
+**Files to Create:**
+```
+packages/core/src/security/
+├── encryption.ts         # AES-256 encryption utilities
+├── audit.ts              # Audit logging
+├── rbac.ts               # Role-based access control
+└── session.ts            # Session management
+
+packages/server/src/middleware/
+├── authenticate.ts       # JWT validation
+├── authorize.ts          # Permission checking
+└── audit.ts              # Request logging
+```
+
+**User Roles & Permissions:**
+
+```typescript
+// Role hierarchy with permissions
+const RolePermissions = {
+  ems_crew: [
+    'incident:create', 'incident:read', 'incident:update',
+    'patient_contact:create', 'patient_contact:read', 'patient_contact:update',
+    'vitals:create', 'vitals:read',
+    'intervention:create', 'intervention:read',
+    'handoff:initiate'
+  ],
+  ems_supervisor: [
+    ...RolePermissions.ems_crew,
+    'incident:delete', 'incident:reassign',
+    'crew:manage', 'reports:view'
+  ],
+  hospital_nurse: [
+    'incoming:view', 'incoming:acknowledge',
+    'patient_contact:read',
+    'handoff:accept', 'handoff:complete',
+    'patient:link'  // Link ePCR to hospital patient
+  ],
+  hospital_physician: [
+    ...RolePermissions.hospital_nurse,
+    'patient_contact:addendum'  // Add notes to ePCR
+  ],
+  // ... etc
+}
+```
+
+### 1.2 Encrypted Local Storage
+
+```typescript
+// packages/frontend/src/shared/db/SecurePouchDB.ts
+import PouchDB from 'pouchdb'
+import CryptoJS from 'crypto-js'
+
+export class SecurePouchDB {
+  private db: PouchDB.Database
+  private encryptionKey: string
+
+  constructor(name: string, userKey: string) {
+    this.db = new PouchDB(name)
+    this.encryptionKey = this.deriveKey(userKey)
   }
+
+  async put(doc: any): Promise<void> {
+    const encrypted = this.encrypt(doc)
+    await this.db.put(encrypted)
+    await this.audit('create', doc._id)
+  }
+
+  async get(id: string): Promise<any> {
+    const encrypted = await this.db.get(id)
+    await this.audit('read', id)
+    return this.decrypt(encrypted)
+  }
+
+  private encrypt(doc: any): any {
+    // Encrypt PHI fields, leave metadata for indexing
+    const phi = { /* PHI fields */ }
+    const encryptedPhi = CryptoJS.AES.encrypt(
+      JSON.stringify(phi),
+      this.encryptionKey
+    ).toString()
+    return { ...doc, _encrypted: encryptedPhi }
+  }
+}
+```
+
+### 1.3 Audit Trail
+
+```typescript
+// Every PHI access logged with tamper-evident checksums
+async function createAuditEntry(entry: Omit<AuditEntry, 'id' | 'checksum'>) {
+  const id = uuid()
+  const previousEntry = await getLastAuditEntry()
+  const checksum = hash(JSON.stringify(entry) + previousEntry?.checksum)
+
+  await AuditRepository.save({ ...entry, id, checksum })
 }
 ```
 
 **Deliverables:**
-- [ ] Agency CRUD operations
-- [ ] User-Agency association
-- [ ] Role-based permission matrix
-- [ ] Agency-scoped data access
+- [ ] Encryption at rest for PouchDB
+- [ ] JWT authentication with refresh tokens
+- [ ] Role-based permission system
+- [ ] Audit logging for all PHI access
+- [ ] Session timeout and auto-logoff
+- [ ] Device registration and management
 
 ---
 
-## Phase 2: ePCR Core Data Models (Week 2-3)
+## Phase 2: Data Models & MCI Mode
 
-### 2.1 Incident/Run Model
+### 2.1 Core Models
 
+**Incident (Run):**
 ```typescript
-// packages/core/src/model/Incident.ts
 interface Incident {
   id: string
-  incidentNumber: string          // Auto-generated (e.g., "2024-001234")
-  agencyId: string                // EMS agency
+  incidentNumber: string
+  agencyId: string
 
-  // Dispatch Info
+  // Mode
+  mode: 'normal' | 'mci'  // MCI = simplified fields
+  mciTriageTag?: string   // RED/YELLOW/GREEN/BLACK
+
+  // Dispatch
   dispatchedAt: string
-  callType: CallType              // Medical, Trauma, Fire, etc.
-  priority: 'emergent' | 'urgent' | 'non-emergent'
-  dispatchAddress: Address
-  dispatchNotes: string
-
-  // Crew
-  unitId: string                  // Ambulance/unit identifier
-  crewMembers: CrewMember[]
+  callType: CallType
+  priority: Priority
+  location: GeoLocation
 
   // Timeline
-  enRouteAt?: string
-  onSceneAt?: string
-  patientContactAt?: string
-  departSceneAt?: string
-  atHospitalAt?: string
-  transferCareAt?: string
-  availableAt?: string
+  timestamps: {
+    dispatched?: string
+    enRoute?: string
+    onScene?: string
+    patientContact?: string
+    departScene?: string
+    atDestination?: string
+    transferCare?: string
+    available?: string
+  }
+
+  // Crew & Unit
+  unitId: string
+  crewMembers: CrewMember[]
+
+  // Destination
+  destinationId?: string
+  destinationType?: 'hospital' | 'clinic' | 'other'
 
   // Status
   status: IncidentStatus
 
-  // Linked Data
-  patientContactIds: string[]     // Can have multiple patients
-  destinationHospitalId?: string
+  // Linked records
+  patientContactIds: string[]
 
-  createdAt: string
-  updatedAt: string
+  // Sync metadata
+  _localOnly?: boolean     // Not yet synced
+  _syncedAt?: string
+  _conflicts?: string[]
 }
-
-type IncidentStatus =
-  | 'dispatched'
-  | 'en_route'
-  | 'on_scene'
-  | 'patient_contact'
-  | 'transporting'
-  | 'at_hospital'
-  | 'transfer_care'
-  | 'available'
-  | 'complete'
-  | 'cancelled'
-
-type CallType =
-  | 'medical_emergency'
-  | 'trauma'
-  | 'cardiac'
-  | 'respiratory'
-  | 'stroke'
-  | 'overdose'
-  | 'psychiatric'
-  | 'obstetric'
-  | 'pediatric'
-  | 'transfer'
-  | 'standby'
-  | 'other'
 ```
 
-### 2.2 Patient Contact (ePCR) Model
-
+**PatientContact (ePCR):**
 ```typescript
-// packages/core/src/model/PatientContact.ts
 interface PatientContact {
   id: string
   incidentId: string
-  patientId?: string              // Links to hospital Patient record
+  mode: 'normal' | 'mci'
 
-  // Demographics (may not have hospital record yet)
-  demographics: {
-    firstName?: string
-    lastName?: string
-    dateOfBirth?: string
-    gender?: string
-    weight?: { value: number; unit: 'kg' | 'lb' }
-    allergies?: string[]
+  // MCI Mode - minimal fields
+  mciData?: {
+    triageTag: 'red' | 'yellow' | 'green' | 'black'
+    tagNumber: string
+    chiefComplaint: string  // Brief
+    location: string        // Where patient was found
+    transportedTo?: string
+    transportedAt?: string
   }
 
-  // Chief Complaint & History
-  chiefComplaint: string
-  historyOfPresentIllness: string
-  pastMedicalHistory: string[]
-  medications: string[]
-
-  // Assessment
-  primaryImpression: string
-  secondaryImpression?: string
-  traumaAssessment?: TraumaAssessment
-
-  // Vitals (time series)
-  vitals: VitalSigns[]
-
-  // Interventions
-  interventions: Intervention[]
-
-  // Disposition
-  disposition: Disposition
+  // Normal Mode - full ePCR
+  demographics?: Demographics
+  assessment?: Assessment
+  vitals?: VitalSigns[]
+  interventions?: Intervention[]
+  medications?: MedicationAdministration[]
 
   // Handoff
   handoff?: Handoff
 
-  // Signatures
-  signatures: Signature[]
+  // Links to external systems
+  externalLinks?: {
+    hospitalPatientId?: string    // Link to EPIC/Cerner patient
+    emsSystemId?: string          // Link to ESO/ImageTrend
+  }
 
-  createdAt: string
-  updatedAt: string
-  createdBy: string
-  lastModifiedBy: string
+  // Sync
+  _pendingSync?: boolean
+  _lastSyncedAt?: string
+}
+```
+
+### 2.2 MCI Mode Toggle
+
+```typescript
+// packages/frontend/src/shared/context/MCIModeContext.tsx
+interface MCIModeState {
+  active: boolean
+  incidentName: string
+  activatedAt: string
+  activatedBy: string
+  triageStats: {
+    red: number
+    yellow: number
+    green: number
+    black: number
+    total: number
+  }
 }
 
-interface VitalSigns {
-  id: string
-  timestamp: string
-  bloodPressure?: { systolic: number; diastolic: number }
-  heartRate?: number
-  respiratoryRate?: number
-  oxygenSaturation?: number
-  temperature?: { value: number; unit: 'C' | 'F' }
-  bloodGlucose?: number
-  painScale?: number              // 0-10
-  gcs?: { eye: number; verbal: number; motor: number }
-  pupils?: { left: PupilAssessment; right: PupilAssessment }
-  skinCondition?: string
-  notes?: string
-  takenBy: string
-}
+// MCI Mode provides:
+// 1. Simplified patient contact form (triage tag only)
+// 2. Quick tag assignment buttons
+// 3. Transport tracking board
+// 4. Suppress non-essential fields
+// 5. Batch sync when connectivity restored
+```
 
-interface Intervention {
-  id: string
-  timestamp: string
-  type: InterventionType
-  details: Record<string, any>    // Flexible for different intervention types
-  outcome?: string
-  performedBy: string
-  notes?: string
-}
-
-type InterventionType =
-  | 'medication_administration'
-  | 'iv_access'
-  | 'airway_management'
-  | 'cpr'
-  | 'defibrillation'
-  | 'splinting'
-  | 'bleeding_control'
-  | 'spinal_immobilization'
-  | 'oxygen_therapy'
-  | 'cardiac_monitoring'
-  | 'other'
-
-interface Handoff {
-  hospitalId: string
-  hospitalName: string
-  receivingNurse?: string
-  receivingPhysician?: string
-  roomAssignment?: string
-  handoffTime: string
-  handoffNotes: string
-  acknowledgmentTime?: string
-  acknowledgedBy?: string
-  status: 'pending' | 'acknowledged' | 'completed'
-}
+**MCI Triage Form (Simplified):**
+```
+┌─────────────────────────────────────────┐
+│  MCI TRIAGE TAG                         │
+├─────────────────────────────────────────┤
+│  Tag #: [AUTO-GENERATED]                │
+│                                         │
+│  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐       │
+│  │ RED │ │ YEL │ │ GRN │ │ BLK │       │
+│  │     │ │     │ │     │ │     │       │
+│  └─────┘ └─────┘ └─────┘ └─────┘       │
+│                                         │
+│  Chief Complaint: [____________]        │
+│                                         │
+│  Location Found: [____________]         │
+│                                         │
+│  [ ] Transported                        │
+│      Destination: [________▼]           │
+│                                         │
+│  [       SAVE & NEXT       ]            │
+└─────────────────────────────────────────┘
 ```
 
 ### 2.3 Files to Create
@@ -261,373 +369,380 @@ packages/core/src/model/
 ├── PatientContact.ts
 ├── VitalSigns.ts
 ├── Intervention.ts
+├── Medication.ts
 ├── Handoff.ts
-├── CrewMember.ts
-└── index.ts (re-export all)
+├── TriageTag.ts          # MCI triage
+└── index.ts
 
 packages/frontend/src/ems/
 ├── incidents/
-│   ├── Incidents.tsx
+│   ├── IncidentList.tsx
 │   ├── NewIncident.tsx
-│   ├── ViewIncident.tsx
+│   ├── IncidentTimeline.tsx
 │   └── hooks/
-│       ├── useIncidents.ts
-│       ├── useIncident.ts
-│       └── useCreateIncident.ts
 ├── epcr/
 │   ├── PatientContactForm.tsx
-│   ├── VitalsPanel.tsx
-│   ├── InterventionsPanel.tsx
-│   ├── AssessmentPanel.tsx
+│   ├── VitalsEntry.tsx
+│   ├── InterventionEntry.tsx
 │   └── hooks/
-└── shared/
-    └── components/
+├── mci/                   # MCI Mode
+│   ├── MCIActivation.tsx
+│   ├── TriageBoard.tsx
+│   ├── QuickTriageForm.tsx
+│   └── TransportTracker.tsx
+└── handoff/
+    ├── InitiateHandoff.tsx
+    └── HandoffStatus.tsx
 ```
 
 **Deliverables:**
-- [ ] Incident model & repository
-- [ ] PatientContact model & repository
-- [ ] VitalSigns time-series storage
-- [ ] Intervention tracking
-- [ ] Basic ePCR form UI
+- [ ] Incident model with MCI support
+- [ ] PatientContact model (normal + MCI modes)
+- [ ] MCI mode toggle and context
+- [ ] Quick triage form
+- [ ] Transport tracking board
+- [ ] Normal mode full ePCR form
 
 ---
 
-## Phase 3: Real-Time Notifications (Week 3-4)
+## Phase 3: Offline Sync Engine
 
-### 3.1 WebSocket Server
+### 3.1 Sync Architecture
 
-**New Package or Server Extension:**
-
-```typescript
-// packages/server/src/websocket/index.ts
-import { WebSocketServer } from 'ws'
-import { FastifyInstance } from 'fastify'
-
-interface NotificationPayload {
-  type: 'patient_incoming' | 'handoff_request' | 'handoff_acknowledged' | 'status_update'
-  incidentId: string
-  patientContactId?: string
-  hospitalId: string
-  eta?: number                    // minutes
-  priority: 'critical' | 'urgent' | 'routine'
-  summary: string
-  timestamp: string
-}
-
-export function setupWebSocket(fastify: FastifyInstance) {
-  const wss = new WebSocketServer({ server: fastify.server })
-
-  // Connection management by agency
-  const connections = new Map<string, Set<WebSocket>>()
-
-  wss.on('connection', (ws, req) => {
-    // Authenticate and associate with agency
-    // Subscribe to agency-specific channels
-  })
-
-  // Publish to specific hospital
-  function notifyHospital(hospitalId: string, payload: NotificationPayload) {
-    const hospitalConnections = connections.get(hospitalId)
-    hospitalConnections?.forEach(ws => ws.send(JSON.stringify(payload)))
-  }
-
-  return { notifyHospital }
-}
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     SYNC FLOW                                │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  [EMS Tablet]              [CouchDB]              [Hospital] │
+│       │                        │                       │     │
+│       │── 1. Create locally ──▶│                       │     │
+│       │   (encrypted)          │                       │     │
+│       │                        │                       │     │
+│       │◀── 2. Sync when ──────▶│◀── 2. Sync ─────────▶│     │
+│       │      online            │                       │     │
+│       │                        │                       │     │
+│       │   3. Conflict?         │                       │     │
+│       │      └─ Auto-merge     │                       │     │
+│       │         or flag        │                       │     │
+│       │                        │                       │     │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 Frontend WebSocket Client
+### 3.2 Sync Status & Queue
 
 ```typescript
-// packages/frontend/src/shared/hooks/useRealtimeNotifications.ts
-export function useRealtimeNotifications() {
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const wsRef = useRef<WebSocket | null>(null)
+// packages/frontend/src/shared/hooks/useSync.ts
+interface SyncState {
+  status: 'synced' | 'syncing' | 'offline' | 'error'
+  pendingChanges: number
+  lastSyncedAt: string | null
+  errors: SyncError[]
+}
 
+export function useSync() {
+  const [state, setState] = useState<SyncState>()
+
+  // Monitor connectivity
   useEffect(() => {
-    const ws = new WebSocket(WS_URL)
-
-    ws.onmessage = (event) => {
-      const notification = JSON.parse(event.data)
-      setNotifications(prev => [notification, ...prev])
-
-      // Show toast for urgent notifications
-      if (notification.priority === 'critical') {
-        showUrgentAlert(notification)
-      }
-    }
-
-    wsRef.current = ws
-    return () => ws.close()
+    const online = navigator.onLine
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
   }, [])
 
-  return { notifications }
+  // Sync queue
+  async function syncPendingChanges() {
+    const pending = await localDb.getPendingChanges()
+    for (const change of pending) {
+      try {
+        await remoteDb.sync(change)
+        await localDb.markSynced(change.id)
+      } catch (error) {
+        handleSyncError(change, error)
+      }
+    }
+  }
+
+  return { ...state, syncNow: syncPendingChanges }
 }
 ```
 
-### 3.3 Hospital Incoming Patients Dashboard
+### 3.3 Conflict Resolution
 
 ```typescript
-// packages/frontend/src/hospital/incoming/IncomingPatients.tsx
-// Real-time list of EMS units en route to this hospital
-// Shows: ETA, chief complaint, vitals summary, crew contact
+// packages/core/src/sync/conflict-resolution.ts
+type ConflictStrategy = 'last-write-wins' | 'merge' | 'manual'
+
+interface ConflictResolution {
+  strategy: ConflictStrategy
+
+  // Field-level merge rules
+  mergeRules: {
+    // Vitals: append (both sets are valid)
+    vitals: 'append',
+    // Status: last-write-wins
+    status: 'last-write',
+    // Demographics: manual review if different
+    demographics: 'manual-if-different'
+  }
+}
+
+async function resolveConflict(local: Doc, remote: Doc): Promise<Doc> {
+  // Auto-merge where possible
+  // Flag for manual review where necessary
+}
 ```
 
 **Deliverables:**
-- [ ] WebSocket server integration
-- [ ] Authentication for WebSocket connections
-- [ ] Agency-scoped message routing
-- [ ] Frontend notification hook
-- [ ] Incoming patients dashboard
-- [ ] Push notification support (optional)
+- [ ] PouchDB ↔ CouchDB sync configuration
+- [ ] Offline change queue
+- [ ] Sync status indicator component
+- [ ] Conflict resolution logic
+- [ ] Manual conflict review UI
+- [ ] Sync retry with exponential backoff
 
 ---
 
-## Phase 4: Patient Handoff Workflow (Week 4-5)
+## Phase 4: Integration Layer (FHIR/HL7)
 
-### 4.1 Handoff States
+### 4.1 FHIR R4 Resources
 
-```
-EMS Side                          Hospital Side
-─────────────────────────────────────────────────────
-1. Create handoff request    →    Notification received
-2. Awaiting acknowledgment   ←    Acknowledge receipt
-3. Handoff acknowledged      →    Prepare for arrival
-4. Arrived at hospital       →    Patient in ED
-5. Transfer care complete    ←    Accept patient
-6. Run complete              →    Patient now hospital record
-```
-
-### 4.2 Patient Record Linking
-
-When EMS arrives and transfers care:
+Map internal models to FHIR for interoperability:
 
 ```typescript
-// Link EMS PatientContact to Hospital Patient
-async function linkPatientRecords(
-  patientContactId: string,
-  hospitalPatientId: string
-): Promise<void> {
-  // Update PatientContact with hospital patient reference
-  const patientContact = await PatientContactRepository.find(patientContactId)
-  patientContact.patientId = hospitalPatientId
-  await PatientContactRepository.save(patientContact)
+// packages/core/src/fhir/mappings.ts
 
-  // Add ePCR reference to hospital Patient
-  const patient = await PatientRepository.find(hospitalPatientId)
-  patient.emsContacts = patient.emsContacts || []
-  patient.emsContacts.push({
-    patientContactId,
-    incidentDate: patientContact.createdAt,
-    chiefComplaint: patientContact.chiefComplaint
-  })
-  await PatientRepository.save(patient)
+// PatientContact → FHIR Bundle
+function toFHIRBundle(patientContact: PatientContact): fhir.Bundle {
+  return {
+    resourceType: 'Bundle',
+    type: 'document',
+    entry: [
+      toFHIRPatient(patientContact.demographics),
+      toFHIREncounter(patientContact),
+      ...patientContact.vitals.map(toFHIRObservation),
+      ...patientContact.interventions.map(toFHIRProcedure),
+      ...patientContact.medications.map(toFHIRMedicationAdministration)
+    ]
+  }
+}
+
+// FHIR Patient → Internal Demographics
+function fromFHIRPatient(fhirPatient: fhir.Patient): Demographics {
+  return {
+    firstName: fhirPatient.name?.[0]?.given?.[0],
+    lastName: fhirPatient.name?.[0]?.family,
+    dateOfBirth: fhirPatient.birthDate,
+    gender: fhirPatient.gender,
+    // ... etc
+  }
 }
 ```
 
-### 4.3 Hospital View of ePCR
+### 4.2 Integration Adapters
 
-Hospital staff can view full ePCR data:
-- All vitals taken in field
-- Interventions performed
-- Medications given
-- Scene observations
-- Transport notes
+```typescript
+// packages/server/src/integrations/
+├── fhir/
+│   ├── FHIRClient.ts        # Generic FHIR R4 client
+│   ├── adapters/
+│   │   ├── EPICAdapter.ts   # EPIC-specific quirks
+│   │   ├── CernerAdapter.ts
+│   │   └── GenericAdapter.ts
+│   └── webhooks/
+│       └── IncomingFHIR.ts  # Receive data from hospitals
+├── ems-systems/
+│   ├── ImageTrendAdapter.ts
+│   ├── ESOAdapter.ts
+│   └── ZOLLAdapter.ts
+└── index.ts
+```
+
+### 4.3 Webhook Receivers
+
+```typescript
+// Hospital sends patient demographics after EMS handoff
+// EMS system receives for QA/billing completion
+
+app.post('/webhooks/fhir', async (req, res) => {
+  const bundle = req.body as fhir.Bundle
+
+  // Validate signature
+  // Parse and map to internal format
+  // Link to existing PatientContact
+  // Update demographics for billing
+})
+```
 
 **Deliverables:**
-- [ ] Handoff request/acknowledge API
-- [ ] Handoff status tracking
-- [ ] Patient record linking
-- [ ] Hospital ePCR viewer component
-- [ ] Print/export ePCR for hospital records
+- [ ] FHIR R4 resource mappings
+- [ ] Generic FHIR client
+- [ ] EPIC adapter (most common)
+- [ ] ESO/ImageTrend export adapters
+- [ ] Webhook endpoints for receiving data
+- [ ] Integration configuration UI
 
 ---
 
-## Phase 5: Mobile-First EMS UI (Week 5-6)
+## Phase 5: Real-Time Hospital Notifications
 
-### 5.1 Responsive Design Requirements
-
-```
-┌────────────────────────────────────────┐
-│  EMS Tablet UI (Primary)               │
-│  - Large touch targets                 │
-│  - Glove-friendly                      │
-│  - High contrast for sunlight          │
-│  - Quick vitals entry                  │
-│  - Voice input support (future)        │
-└────────────────────────────────────────┘
-```
-
-### 5.2 Offline-First Enhancements
+### 5.1 WebSocket Server
 
 ```typescript
-// packages/frontend/src/shared/hooks/useOfflineSync.ts
-export function useOfflineSync() {
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>('synced')
-  const [pendingChanges, setPendingChanges] = useState(0)
-
-  // Queue changes when offline
-  // Sync when connection restored
-  // Conflict resolution for concurrent edits
+// packages/server/src/websocket/notifications.ts
+interface IncomingPatientAlert {
+  type: 'incoming_patient'
+  incidentId: string
+  eta: number  // minutes
+  priority: 'critical' | 'emergent' | 'routine'
+  chiefComplaint: string
+  vitals: {
+    latest: VitalSigns
+    trend?: 'stable' | 'improving' | 'deteriorating'
+  }
+  interventions: string[]  // Summary
+  crewContact: string      // Radio/phone
 }
 ```
 
-### 5.3 PWA Configuration
+### 5.2 Hospital Incoming Dashboard
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  INCOMING PATIENTS                              [MCI MODE]  │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │ 🔴 CRITICAL    ETA 3 min                            │    │
+│  │ Unit: M-42     Chief Complaint: Chest Pain          │    │
+│  │ Vitals: BP 180/110, HR 110, SpO2 94%               │    │
+│  │ Interventions: ASA, NTG x2, 12-lead transmitted    │    │
+│  │ [View Full ePCR]  [Acknowledge]  [Assign Room]     │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                                                              │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │ 🟡 URGENT      ETA 12 min                           │    │
+│  │ Unit: A-7      Chief Complaint: Fall, hip pain      │    │
+│  │ Vitals: BP 140/88, HR 88, SpO2 98%                 │    │
+│  │ [View Full ePCR]  [Acknowledge]                     │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Deliverables:**
+- [ ] WebSocket server with authentication
+- [ ] Hospital subscription management
+- [ ] Incoming patient alert system
+- [ ] Hospital dashboard component
+- [ ] Push notifications (optional)
+- [ ] Audio alerts for critical patients
+
+---
+
+## Phase 6: Mobile & PWA
+
+### 6.1 PWA Configuration
 
 ```typescript
-// packages/frontend/vite.config.ts - Add PWA plugin
+// packages/frontend/vite.config.ts
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   plugins: [
-    react(),
     VitePWA({
       registerType: 'autoUpdate',
+      includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
+      manifest: {
+        name: 'OfflineFirst ePCR',
+        short_name: 'ePCR',
+        theme_color: '#1976d2',
+        background_color: '#ffffff',
+        display: 'standalone',
+        orientation: 'portrait',
+        scope: '/',
+        start_url: '/',
+        icons: [/* ... */]
+      },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/api\./,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'api-cache',
-              networkTimeoutSeconds: 10,
-            },
-          },
-        ],
-      },
-    }),
-  ],
+              networkTimeoutSeconds: 5,  // Fast fallback to cache
+            }
+          }
+        ]
+      }
+    })
+  ]
 })
 ```
 
-**Deliverables:**
-- [ ] Mobile-optimized ePCR form
-- [ ] Quick vitals entry component
-- [ ] Offline indicator & sync status
-- [ ] PWA manifest & service worker
-- [ ] Touch-optimized buttons & inputs
+### 6.2 Touch-Optimized UI
 
----
+```css
+/* Large touch targets for gloved hands */
+.btn-touch {
+  min-height: 48px;
+  min-width: 48px;
+  padding: 12px 24px;
+  font-size: 18px;
+}
 
-## Phase 6: Reporting & Compliance (Week 6-7)
-
-### 6.1 NEMSIS Compliance (US Standard)
-
-```typescript
-// packages/core/src/export/nemsis.ts
-// National EMS Information System data export
-interface NEMSISExport {
-  generatePatientCareReport(patientContactId: string): NEMSISDocument
-  validateCompliance(patientContact: PatientContact): ValidationResult
-  exportToState(patientContact: PatientContact): Promise<void>
+/* High contrast for outdoor/bright conditions */
+.high-contrast {
+  --bg: #000;
+  --fg: #fff;
+  --accent: #ffeb3b;
 }
 ```
 
-### 6.2 Reports
-
-- Run reports (individual incident)
-- Crew activity reports
-- Response time analytics
-- Hospital handoff metrics
-- QA/QI reports
-
 **Deliverables:**
-- [ ] NEMSIS-compliant data export
-- [ ] Run report PDF generation
-- [ ] Analytics dashboard
-- [ ] Export to state reporting system (configurable)
+- [ ] PWA manifest and service worker
+- [ ] Offline page and indicators
+- [ ] Touch-optimized component variants
+- [ ] High-contrast theme
+- [ ] Install prompts
 
 ---
 
-## Technical Debt & Improvements
-
-### During Implementation
-
-1. **Migrate remaining react-query hooks** to v5 patterns (partially done)
-2. **TypeScript strict mode** - Enable and fix errors
-3. **Test coverage** - Add tests for new features
-4. **Error boundaries** - Add proper error handling
-5. **Logging** - Add structured logging for debugging
-
-### Post-Implementation
-
-1. **Performance optimization** - Code splitting, lazy loading
-2. **Accessibility audit** - WCAG compliance
-3. **Security audit** - Authentication, data encryption
-4. **Load testing** - Multi-tenant scalability
-
----
-
-## File Structure After Implementation
+## Implementation Order (Recommended)
 
 ```
-packages/
-├── core/
-│   └── src/
-│       ├── model/
-│       │   ├── Agency.ts
-│       │   ├── Incident.ts
-│       │   ├── PatientContact.ts
-│       │   ├── VitalSigns.ts
-│       │   ├── Intervention.ts
-│       │   ├── Handoff.ts
-│       │   └── ... (existing models)
-│       └── export/
-│           └── nemsis.ts
-├── frontend/
-│   └── src/
-│       ├── ems/                    # NEW: EMS module
-│       │   ├── incidents/
-│       │   ├── epcr/
-│       │   └── dashboard/
-│       ├── hospital/               # NEW: Hospital-specific
-│       │   ├── incoming/
-│       │   └── handoff/
-│       ├── shared/
-│       │   ├── hooks/
-│       │   │   ├── useRealtimeNotifications.ts
-│       │   │   └── useOfflineSync.ts
-│       │   └── components/
-│       └── ... (existing)
-└── server/
-    └── src/
-        ├── websocket/              # NEW: Real-time
-        ├── routes/
-        │   ├── incidents.ts
-        │   ├── patient-contacts.ts
-        │   └── handoffs.ts
-        └── ... (existing)
+Week 1-2:  Phase 1 (Security) - Foundation for everything else
+Week 2-3:  Phase 2 (Models) - Core data structures + MCI mode
+Week 3-4:  Phase 3 (Sync) - Offline-first functionality
+Week 4-5:  Phase 4 (FHIR) - Integration capability
+Week 5-6:  Phase 5 (Real-time) - Hospital notifications
+Week 6-7:  Phase 6 (PWA) - Mobile optimization
+Week 7+:   Testing, compliance audit, pilot deployment
 ```
 
----
+## Starting Point
 
-## Getting Started
+**Recommended first step:** Phase 1.1 - Authentication & Role System
 
-To begin implementation, run these commands in order:
+This establishes:
+- User management foundation
+- Permission system for all features
+- Audit logging from day one
+- HIPAA compliance baked in
 
-```bash
-# 1. Create core model files
-npm run dev:frontend  # Verify app still runs
-
-# 2. Start with Phase 1
-# Create Agency model first, then extend User model
-```
-
-**Recommended Starting Point:** Phase 2.1 - Incident Model
-
-This provides immediate value (run tracking) and establishes patterns for remaining work.
+Want me to start implementing the authentication and role system?
 
 ---
 
-## Questions to Resolve
+## Open Questions
 
-1. **State reporting requirements** - Which state(s) will this deploy to? NEMSIS versions vary.
-2. **Hospital integration** - Will hospitals already have HospitalRun, or need to integrate with existing EHR?
-3. **Dispatch integration** - CAD system integration, or standalone dispatch?
-4. **Billing codes** - ICD-10, CPT for interventions?
-5. **Authentication** - SSO requirements? Active Directory integration?
+1. **Deployment model** - Self-hosted by agencies? Shared SaaS? Hybrid?
+2. **Identity provider** - Build our own or integrate with Azure AD/Okta?
+3. **State selection** - Which state's requirements should we implement first?
+4. **Pilot users** - Any specific agencies to design for?
 
 ---
 
-*Plan created: Phase 1-6 implementation for HospitalRun + EMS ePCR convergence*
+*Plan revised to focus on: Offline resilience, MCI mode, integration (not replacement), HIPAA compliance*
