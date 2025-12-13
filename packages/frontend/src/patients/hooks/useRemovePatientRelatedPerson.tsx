@@ -1,4 +1,4 @@
-import { useMutation, queryCache } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import PatientRepository from '../../shared/db/PatientRepository'
 import RelatedPerson from '../../shared/model/RelatedPerson'
@@ -22,7 +22,9 @@ async function removeRelatedPerson(request: removeRelatedPersonRequest): Promise
 }
 
 export default function useRemovePatientRelatedPerson() {
-  return useMutation(removeRelatedPerson, {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: removeRelatedPerson,
     onSuccess: async (data, variables) => {
       const relatedPersons = await Promise.all(
         data.map(async (rp) => {
@@ -30,8 +32,7 @@ export default function useRemovePatientRelatedPerson() {
           return { ...patient, type: rp.type }
         }),
       )
-      await queryCache.setQueryData(['related-persons', variables.patientId], relatedPersons)
+      queryClient.setQueryData(['related-persons', variables.patientId], relatedPersons)
     },
-    throwOnError: true,
   })
 }

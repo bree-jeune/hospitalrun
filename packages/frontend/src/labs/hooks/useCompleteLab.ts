@@ -1,5 +1,5 @@
 import isEmpty from 'lodash/isEmpty'
-import { useMutation, queryCache } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import LabRepository from '../../shared/db/LabRepository'
 import Lab from '../../shared/model/Lab'
@@ -22,11 +22,12 @@ function completeLab(lab: Lab): Promise<Lab> {
 }
 
 export default function useCompleteLab() {
-  return useMutation(completeLab, {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: completeLab,
     onSuccess: async (data) => {
-      queryCache.setQueryData(['lab', data.id], data)
-      await queryCache.invalidateQueries('labs')
+      queryClient.setQueryData(['lab', data.id], data)
+      await queryClient.invalidateQueries({ queryKey: ['labs'] })
     },
-    throwOnError: true,
   })
 }

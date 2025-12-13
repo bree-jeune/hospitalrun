@@ -1,5 +1,5 @@
 import isEmpty from 'lodash/isEmpty'
-import { queryCache, useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import PatientRepository from '../../shared/db/PatientRepository'
 import Note from '../../shared/model/Note'
@@ -35,10 +35,11 @@ async function addNote(request: AddNoteRequest): Promise<Note[]> {
 }
 
 export default function useAddPatientNote() {
-  return useMutation(addNote, {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: addNote,
     onSuccess: async (data, variables) => {
-      await queryCache.setQueryData(['notes', variables.patientId], data)
+      queryClient.setQueryData(['notes', variables.patientId], data)
     },
-    throwOnError: true,
   })
 }

@@ -1,4 +1,4 @@
-import { useMutation, queryCache } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import LabRepository from '../../shared/db/LabRepository'
 import Lab from '../../shared/model/Lab'
@@ -10,9 +10,11 @@ function cancelLab(lab: Lab): Promise<Lab> {
 }
 
 export default function useCancelLab() {
-  return useMutation(cancelLab, {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: cancelLab,
     onSuccess: async () => {
-      queryCache.invalidateQueries('labs')
+      queryClient.invalidateQueries({ queryKey: ['labs'] })
     },
   })
 }

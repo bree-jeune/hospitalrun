@@ -1,4 +1,4 @@
-import { queryCache, useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import IncidentRepository from '../../shared/db/IncidentRepository'
 import Incident from '../../shared/model/Incident'
@@ -12,9 +12,11 @@ function resolveIncident(incident: Incident): Promise<Incident> {
 }
 
 export default function useResolveIncident() {
-  return useMutation(resolveIncident, {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: resolveIncident,
     onSuccess: async (data: Incident) => {
-      queryCache.setQueryData(['incident', data.id], data)
+      queryClient.setQueryData(['incident', data.id], data)
     },
   })
 }

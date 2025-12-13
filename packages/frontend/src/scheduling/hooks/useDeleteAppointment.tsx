@@ -1,4 +1,4 @@
-import { queryCache, useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import AppointmentRepository from '../../shared/db/AppointmentRepository'
 import Appointment from '../../shared/model/Appointment'
@@ -13,9 +13,11 @@ async function deleteAppointment(request: deleteAppointmentRequest): Promise<App
 }
 
 export default function useDeleteAppointment() {
-  return useMutation(deleteAppointment, {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: deleteAppointment,
     onSuccess: async () => {
-      await queryCache.invalidateQueries('appointment')
+      await queryClient.invalidateQueries({ queryKey: ['appointment'] })
     },
   })
 }

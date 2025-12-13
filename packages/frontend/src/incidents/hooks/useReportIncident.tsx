@@ -1,5 +1,5 @@
 import isEmpty from 'lodash/isEmpty'
-import { queryCache, useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import shortid from 'shortid'
 
 import IncidentRepository from '../../shared/db/IncidentRepository'
@@ -25,10 +25,11 @@ export function reportIncident(incident: Incident): Promise<Incident> {
 }
 
 export default function useReportIncident() {
-  return useMutation(reportIncident, {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: reportIncident,
     onSuccess: async () => {
-      await queryCache.invalidateQueries('incidents')
+      await queryClient.invalidateQueries({ queryKey: ['incidents'] })
     },
-    throwOnError: true,
   })
 }

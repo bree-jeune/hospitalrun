@@ -1,5 +1,5 @@
 import isEmpty from 'lodash/isEmpty'
-import { useMutation, queryCache } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import PatientRepository from '../../shared/db/PatientRepository'
 import RelatedPerson from '../../shared/model/RelatedPerson'
@@ -35,7 +35,9 @@ async function addRelatedPerson(request: AddRelatedPersonRequest): Promise<Relat
 }
 
 export default function useAddPatientRelatedPerson() {
-  return useMutation(addRelatedPerson, {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: addRelatedPerson,
     onSuccess: async (data, variables) => {
       const relatedPersons = await Promise.all(
         data.map(async (rp) => {
@@ -43,8 +45,7 @@ export default function useAddPatientRelatedPerson() {
           return { ...patient, type: rp.type }
         }),
       )
-      await queryCache.setQueryData(['related-persons', variables.patientId], relatedPersons)
+      queryClient.setQueryData(['related-persons', variables.patientId], relatedPersons)
     },
-    throwOnError: true,
   })
 }

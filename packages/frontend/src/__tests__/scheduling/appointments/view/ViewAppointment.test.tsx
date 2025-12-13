@@ -5,7 +5,7 @@ import addMinutes from 'date-fns/addMinutes'
 import format from 'date-fns/format'
 import { createMemoryHistory } from 'history'
 import React from 'react'
-import { queryCache } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Provider } from 'react-redux'
 import { Router, Route } from 'react-router-dom'
 import createMockStore from 'redux-mock-store'
@@ -24,6 +24,11 @@ import { RootState } from '../../../../shared/store'
 
 const { TitleProvider } = titleUtil
 const mockStore = createMockStore<RootState, any>([thunk])
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false },
+  },
+})
 
 const setup = (permissions = [Permissions.ReadAppointments], skipSpies = false) => {
   const expectedAppointment = {
@@ -60,26 +65,28 @@ const setup = (permissions = [Permissions.ReadAppointments], skipSpies = false) 
     expectedAppointment,
     expectedPatient,
     ...render(
-      <Provider store={store}>
-        <Router history={history}>
-          <ButtonBarProvider>
-            <ButtonToolbar />
-            <Route path="/appointments/:id">
-              <TitleProvider>
-                <ViewAppointment />
-              </TitleProvider>
-            </Route>
-          </ButtonBarProvider>
-          <Toaster draggable hideProgressBar />
-        </Router>
-      </Provider>,
+      <QueryClientProvider client={queryClient}>
+        <Provider store={store}>
+          <Router history={history}>
+            <ButtonBarProvider>
+              <ButtonToolbar />
+              <Route path="/appointments/:id">
+                <TitleProvider>
+                  <ViewAppointment />
+                </TitleProvider>
+              </Route>
+            </ButtonBarProvider>
+            <Toaster draggable hideProgressBar />
+          </Router>
+        </Provider>
+      </QueryClientProvider>,
     ),
   }
 }
 
 describe('View Appointment', () => {
   beforeEach(() => {
-    queryCache.clear()
+    queryClient.clear()
     jest.resetAllMocks()
   })
 

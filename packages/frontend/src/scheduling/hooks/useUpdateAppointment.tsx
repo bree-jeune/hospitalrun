@@ -1,11 +1,11 @@
-import { MutateFunction, queryCache, useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import AppointmentRepository from '../../shared/db/AppointmentRepository'
 import Appointment from '../../shared/model/Appointment'
 import validateAppointment, { AppointmentError } from '../appointments/util/validate-appointment'
 
 interface updateAppointmentResult {
-  mutate: MutateFunction<Appointment, unknown, Appointment, unknown>
+  mutate: (appointment: Appointment) => void
   isLoading: boolean
   isError: boolean
   error: AppointmentError
@@ -16,16 +16,17 @@ async function updateAppointment(appointment: Appointment): Promise<Appointment>
 }
 
 export default function useUpdateAppointment(appointment: Appointment): updateAppointmentResult {
+  const queryClient = useQueryClient()
   const updateAppointmentError = validateAppointment(appointment)
-  const [mutate, { isLoading, isError }] = useMutation(updateAppointment, {
+  const { mutate, isPending, isError } = useMutation({
+    mutationFn: updateAppointment,
     onSuccess: async () => {
-      await queryCache.invalidateQueries('appointment')
+      await queryClient.invalidateQueries({ queryKey: ['appointment'] })
     },
-    throwOnError: true,
   })
   const result: updateAppointmentResult = {
     mutate,
-    isLoading,
+    isLoading: isPending,
     isError,
     error: updateAppointmentError,
   }

@@ -1,5 +1,5 @@
 import isEmpty from 'lodash/isEmpty'
-import { queryCache, useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import ImagingRepository from '../../shared/db/ImagingRepository'
 import Imaging from '../../shared/model/Imaging'
@@ -32,10 +32,11 @@ function requestImagingWrapper(user: any) {
 }
 
 export default function useRequestImaging(user: any) {
-  return useMutation(requestImagingWrapper(user), {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: requestImagingWrapper(user),
     onSuccess: async () => {
-      await queryCache.invalidateQueries('imagings')
+      await queryClient.invalidateQueries({ queryKey: ['imagings'] })
     },
-    throwOnError: true,
   })
 }

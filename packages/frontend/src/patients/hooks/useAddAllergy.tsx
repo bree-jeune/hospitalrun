@@ -1,5 +1,5 @@
 import isEmpty from 'lodash/isEmpty'
-import { queryCache, useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import PatientRepository from '../../shared/db/PatientRepository'
 import Allergy from '../../shared/model/Allergy'
@@ -35,10 +35,11 @@ async function addAllergy(request: AddAllergyRequest): Promise<Allergy[]> {
 }
 
 export default function useAddAllergy() {
-  return useMutation(addAllergy, {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: addAllergy,
     onSuccess: async (data, variables) => {
-      await queryCache.setQueryData(['allergies', variables.patientId], data)
+      queryClient.setQueryData(['allergies', variables.patientId], data)
     },
-    throwOnError: true,
   })
 }

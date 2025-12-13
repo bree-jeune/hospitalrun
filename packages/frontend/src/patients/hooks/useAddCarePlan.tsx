@@ -1,5 +1,5 @@
 import isEmpty from 'lodash/isEmpty'
-import { queryCache, useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import PatientRepository from '../../shared/db/PatientRepository'
 import CarePlan from '../../shared/model/CarePlan'
@@ -38,10 +38,11 @@ async function addCarePlan(request: AddCarePlanRequest): Promise<CarePlan[]> {
 }
 
 export default function useAddCarePlan() {
-  return useMutation(addCarePlan, {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: addCarePlan,
     onSuccess: async (data, variables) => {
-      await queryCache.setQueryData(['care-plans', variables.patientId], data)
+      queryClient.setQueryData(['care-plans', variables.patientId], data)
     },
-    throwOnError: true,
   })
 }

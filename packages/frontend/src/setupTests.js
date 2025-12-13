@@ -2,7 +2,7 @@
 import '@testing-library/jest-dom'
 import { configure, act } from '@testing-library/react'
 import 'jest-canvas-mock'
-import { queryCache } from '@tanstack/react-query'
+import { QueryClient } from '@tanstack/react-query'
 
 import './__mocks__/i18next'
 import './__mocks__/matchMediaMock'
@@ -13,8 +13,10 @@ configure({ defaultHidden: true })
 
 jest.setTimeout(10000)
 
+const queryClient = new QueryClient()
+
 afterEach(() => {
-  queryCache.clear()
+  queryClient.clear()
 })
 
 afterEach(() => {
