@@ -1,65 +1,37 @@
 {
   "name": "hospitalrun",
   "version": "2.0.0",
-  "description": "HosptialRun mono-repo",
-  "repository": "git@github.com:HospitalRun/hospitalrun.git",
-  "author": "Maksim Sink <maksim@sinik.it>",
+  "description": "HospitalRun mono-repo",
+  "repository": "https://github.com/HospitalRun/hospitalrun.git",
+  "author": "Maksim Sinik <maksim@sinik.it>",
   "license": "MIT",
   "private": true,
+  "packageManager": "yarn@1.22.22",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "commit": "npx git-cz",
-    "commit-components": "yarn workspace @hospitalrun/components commit",
-    "commit-cli": "yarn workspace @hospitalrun/cli commit",
-    "commit-core": "yarn workspace @hospitalrun/core commit",
-    "commit-frontend": "yarn workspace @hospitalrun/frontend commit",
-    "commit-server": "yarn workspace @hospitalrun/server commit",
-    "update": "yarn upgrade-interactive --latest"
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "lint": "npm run lint --workspaces",
+    "dev:frontend": "npm run start --workspace=@hospitalrun/frontend",
+    "dev:server": "npm run dev --workspace=@hospitalrun/server",
+    "update": "npm update"
   },
   "devDependencies": {
-    "@commitlint/cli": "~8.2.0",
-    "@commitlint/config-conventional": "^8.3.4",
-    "@commitlint/core": "~8.2.0",
-    "@commitlint/prompt": "^8.3.5",
-    "commitizen": "~4.0.3",
-    "commitlint-config-cz": "^0.13.0",
-    "cross-env": "~6.0.3",
-    "cz-conventional-changelog": "^3.1.0",
-    "dateformat": "~3.0.3",
-    "husky": "~3.1.0"
-  },
-  "husky": {
-    "hooks": {
-      "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
-    }
+    "@commitlint/cli": "^18.4.0",
+    "@commitlint/config-conventional": "^18.4.0",
+    "commitizen": "^4.3.0",
+    "cz-conventional-changelog": "^3.3.0",
+    "husky": "~8.0.3"
   },
   "config": {
     "commitizen": {
       "path": "./node_modules/cz-conventional-changelog"
     }
   },
-  "workspaces": {
-    "packages": [
-      "packages/*"
-    ],
-    "nohoist": [
-      "**/husky",
-      "**/husky/**",
-      "**/jest",
-      "**/jest/**",
-      "**/tsdx",
-      "**/tsdx/**",
-      "**/cz-conventional-changelog",
-      "**/cz-conventional-changelog/**",
-      "**/tap",
-      "**/tap/**",
-      "**/tap-mocha-reporter",
-      "**/tap-mocha-reporter/**",
-      "**/eslint-plugin-prettier",
-      "**/eslint-plugin-prettier/**",
-      "**/eslint-config-prettier",
-      "**/eslint-config-prettier/**",
-      "**/webpack",
-      "**/webpack/**"
-    ]
-  }
+  "workspaces": [
+    "packages/*"
+  ]
 }

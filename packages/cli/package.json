@@ -1,0 +1,51 @@
+{
+  "name": "@hospitalrun/cli",
+  "version": "0.4.6",
+  "description": "HospitalRun CLI",
+  "type": "module",
+  "bin": {
+    "hospitalrun": "./dist/hospitalrun.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/HospitalRun/cli.git"
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rimraf dist",
+    "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
+    "lint:fix": "eslint \"src/**/*.{js,jsx,ts,tsx}\" --fix",
+    "test": "vitest",
+    "test:ci": "vitest run"
+  },
+  "keywords": [],
+  "author": "Maksim Sinik <maksim@hospitalrun.io>",
+  "license": "MIT",
+  "dependencies": {
+    "@sinclair/typebox": "^0.32.0",
+    "ajv": "^8.12.0",
+    "chalk": "^5.3.0",
+    "glob": "^10.3.0",
+    "sade": "^1.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "cross-env": "^7.0.0",
+    "eslint": "^8.55.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "prettier": "^3.1.0",
+    "rimraf": "^5.0.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  },
+  "files": [
+    "dist"
+  ]
+}

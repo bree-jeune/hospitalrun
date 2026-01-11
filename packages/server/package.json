@@ -1,0 +1,55 @@
+{
+  "name": "@hospitalrun/server",
+  "version": "2.0.0-alpha.5",
+  "description": "HospitalRun Node.js server",
+  "type": "module",
+  "main": "dist/index.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/HospitalRun/hospitalrun-server.git"
+  },
+  "scripts": {
+    "build": "npm run clean && tsc -p ./tsconfig.json",
+    "start": "node dist/index.js",
+    "clean": "rimraf dist",
+    "dev": "tsx watch src/index.ts",
+    "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
+    "lint:fix": "eslint \"src/**/*.{js,jsx,ts,tsx}\" --fix",
+    "test": "vitest",
+    "test:ci": "vitest run"
+  },
+  "keywords": [],
+  "author": "Maksim Sinik <maksim@sinik.it>",
+  "license": "MIT",
+  "dependencies": {
+    "@fastify/autoload": "^5.8.0",
+    "@fastify/cors": "^8.4.0",
+    "@fastify/helmet": "^11.1.0",
+    "@fastify/http-proxy": "^9.3.0",
+    "fastify": "^4.24.0",
+    "fastify-plugin": "^4.5.0",
+    "nano": "^10.1.0",
+    "qs": "^6.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/qs": "^6.9.10",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "cross-env": "^7.0.0",
+    "dotenv": "^16.3.0",
+    "eslint": "^8.55.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "pino-pretty": "^10.2.0",
+    "prettier": "^3.1.0",
+    "rimraf": "^5.0.0",
+    "tsx": "^4.6.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  }
+}

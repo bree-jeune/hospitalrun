@@ -1,0 +1,70 @@
+module.exports = {
+  ignorePatterns: ['dist', 'commitlint.config.js', 'node_modules'],
+  env: {
+    browser: true,
+    es6: true,
+  },
+  extends: [
+    'airbnb/base',
+    'plugin:@typescript-eslint/recommended',
+    'prettier',
+    'prettier/@typescript-eslint',
+    'plugin:prettier/recommended',
+  ],
+  globals: {
+    Atomics: 'readonly',
+    SharedArrayBuffer: 'readonly',
+  },
+  parser: '@typescript-eslint/parser',
+  parserOptions: {
+    project: ['./tsconfig.json', 'src/design-documents/tsconfig.json'],
+    tsconfigRootDir: './',
+  },
+  settings: {
+    'import/resolver': {
+      node: {
+        extensions: ['.js', '.jsx', '.ts', '.tsx'],
+      },
+    },
+  },
+  plugins: ['@typescript-eslint', 'prettier'],
+  ignorePatterns: ['node_modules/'],
+  rules: {
+    '@typescript-eslint/member-delimiter-style': 'off',
+    '@typescript-eslint/explicit-function-return-type': 'off',
+    '@typescript-eslint/no-explicit-any': 'off',
+    '@typescript-eslint/no-unused-vars': 'off',
+    '@typescript-eslint/unified-signatures': 'error',
+    '@typescript-eslint/no-inferrable-types': ['error', { ignoreParameters: true }],
+    '@typescript-eslint/no-empty-function': ['error', { allow: ['arrowFunctions'] }],
+    'import/extensions': 'off',
+    'import/order': [
+      'error',
+      {
+        groups: ['external', ['sibling', 'parent', 'internal'], 'builtin', 'unknown'],
+        'newlines-between': 'always',
+        alphabetize: {
+          order: 'asc',
+          caseInsensitive: true,
+        },
+      },
+    ],
+    'react/jsx-one-expression-per-line': 'off',
+    'react/jsx-wrap-multilines': 'off',
+    'react/jsx-props-no-spreading': 'off',
+    'arrow-body-style': ['warn', 'as-needed'],
+    'no-param-reassign': ['error', { props: false }],
+    'import/prefer-default-export': 'off',
+    'no-console': 'off',
+    'no-underscore-dangle': 'off',
+    'no-cond-assign': 'off',
+    'no-plusplus': 'off',
+    'vars-on-top': 'off',
+    'eol-last': ['error', 'always'],
+    'no-debugger': 'error',
+    'no-nested-ternary': 'off',
+    'import/no-unresolved': 'off',
+    'import/extensions': ['error', 'never'],
+    curly: ['error', 'all'],
+  },
+}
